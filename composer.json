@@ -1,0 +1,21 @@
+{
+  "name": "pw/jd-sdk",
+  "description": "Laravel JD SDK",
+  "authors": [
+    {
+      "name": "Purwadi",
+      "email": "purwadie97@gmail.com"
+    }
+  ],
+  "homepage": "https://github.com/PurwadiPw/jd-sdk",
+  "license": "MIT",
+  "require": {
+    "php": "^7.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "Pw\\JdSdk\\": "src/"
+    }
+  },
+  "minimum-stability": "dev"
+}
