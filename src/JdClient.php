@@ -1,8 +1,8 @@
 <?php
 namespace Pw\JdSdk;
 
-use Exception;
 use DateTimeZone;
+use Exception;
 
 class JdClient
 {
@@ -52,32 +52,14 @@ class JdClient
         if ($this->connectTimeout) {
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connectTimeout);
         }
-        //https ����
+        //https 请求
         if (strlen($url) > 5 && strtolower(substr($url, 0, 5)) == "https") {
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         }
 
-        if (is_array($postFields) && 0 < count($postFields)) {
-            $postBodyString = "";
-            $postMultipart = false;
-            foreach ($postFields as $k => $v) {
-                if ("@" != substr($v, 0, 1)) //�ж��ǲ����ļ��ϴ�
-                {
-                    $postBodyString .= "$k=" . urlencode($v) . "&";
-                } else //�ļ��ϴ���multipart/form-data��������www-form-urlencoded
-                {
-                    $postMultipart = true;
-                }
-            }
-            unset($k, $v);
-            curl_setopt($ch, CURLOPT_POST, true);
-            if ($postMultipart) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
-            } else {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, substr($postBodyString, 0, -1));
-            }
-        }
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
         $reponse = curl_exec($ch);
 
         if (curl_errno($ch)) {
@@ -94,7 +76,7 @@ class JdClient
 
     public function execute($request, $access_token = null)
     {
-        //��װϵͳ����
+        //组装系统参数
         $sysParams["app_key"] = $this->appKey;
         $version = $request->getVersion();
 
@@ -105,28 +87,35 @@ class JdClient
             $sysParams["access_token"] = $access_token;
         }
 
-        //��ȡҵ�����
+        //获取业务参数
         $apiParams = $request->getApiParas();
+        if (count(json_decode($apiParams, true)) == 0) {
+            $apiParams = '{}';
+        }
+
         $sysParams[$this->json_param_key] = $apiParams;
 
-        //ǩ��
+        //签名
         $sysParams["sign"] = $this->generateSign($sysParams);
-        //ϵͳ��������GET����
+        //系统参数放入GET请求串
         $requestUrl = $this->serverUrl . "?";
         foreach ($sysParams as $sysParamKey => $sysParamValue) {
             $requestUrl .= "$sysParamKey=" . urlencode($sysParamValue) . "&";
         }
-        //����HTTP����
+
+        //发起HTTP请求
         try
         {
-            $resp = $this->curl($requestUrl, $apiParams);
+            $resp = $this->curl($this->serverUrl, $sysParams);
         } catch (Exception $e) {
             $result->code = $e->getCode();
             $result->msg = $e->getMessage();
             return $result;
         }
+        $resp = str_replace(',}', '}', $resp);
 
-        //����JD���ؽ��
+        // echo $resp;die;
+        //解析JD返回结果
         $respWellFormed = false;
         if ("json" == $this->format) {
             $respObject = json_decode($resp);
@@ -143,7 +132,7 @@ class JdClient
             }
         }
 
-        //���ص�HTTP�ı����Ǳ�׼JSON����XML�����´�����־
+        //返回的HTTP文本不是标准JSON或者XML，记下错误日志
         if (false === $respWellFormed) {
             $result->code = 0;
             $result->msg = "HTTP_RESPONSE_NOT_WELL_FORMED";
